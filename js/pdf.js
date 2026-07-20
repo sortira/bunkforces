@@ -16,8 +16,12 @@
     mathjaxLoading = new Promise(function (resolve) {
       global.MathJax = {
         tex: {
+          // Codeforces only ever uses $$$...$$$ (inline). Defining a $$$$$$
+          // display delimiter overlaps it and makes MathJax miscount offsets on
+          // adjacent math ($$$a$$$$$$b$$$) — the "splitText offset" crash. So we
+          // define ONLY the inline delimiter.
           inlineMath: [["$$$", "$$$"]],
-          displayMath: [["$$$$$$", "$$$$$$"]],
+          displayMath: [],
           processEscapes: true,
         },
         svg: { fontCache: "none" },
@@ -41,6 +45,27 @@
   function esc(s) {
     return String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  // Render math block-by-block so one malformed statement (e.g. MathJax's
+  // "splitText offset larger than node length") can't abort the whole PDF.
+  // A block that fails to typeset simply keeps its raw $$$ text; every other
+  // block still renders, and the PDF is always produced.
+  function typesetMath(root) {
+    var MJ = global.MathJax;
+    if (!MJ || !MJ.typesetPromise) return Promise.resolve();
+    var nodes = Array.prototype.slice.call(
+      root.querySelectorAll(".pp-statement, .pp-io, .pp-meta")
+    );
+    if (!nodes.length) nodes = [root];
+    return nodes.reduce(function (chain, node) {
+      return chain.then(function () {
+        return MJ.typesetPromise([node]).catch(function () {
+          // Discard any half-rendered math on this node and move on.
+          try { if (MJ.typesetClear) MJ.typesetClear([node]); } catch (e) {}
+        });
+      });
+    }, Promise.resolve()).catch(function () {});
   }
 
   function qrDataUrl(text) {
@@ -177,10 +202,9 @@
       docEl.style.setProperty("--print-margin", (opts.margin || 12) + "mm");
 
       var needsMath = opts.mode === "full" && /\$\$\$/.test(root.textContent || "");
-      var ready = needsMath ? loadMathJax().then(function () {
-        return global.MathJax && global.MathJax.typesetPromise
-          ? global.MathJax.typesetPromise([root]) : null;
-      }) : Promise.resolve();
+      var ready = needsMath
+        ? loadMathJax().then(function () { return typesetMath(root); }).catch(function () {})
+        : Promise.resolve();
 
       return ready.then(function () {
         return new Promise(function (resolve) {
