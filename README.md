@@ -81,6 +81,37 @@ statements (PDF falls back to header + QR cards).
 
 ---
 
+## Deploy (Railway / any host)
+
+Deploy the **FastAPI app** — it serves the frontend *and* the API from the same
+origin, so the browser talks to `/api/...` **relatively** (no hardcoded hosts).
+
+This repo already contains what Railway needs at the root:
+
+- `requirements.txt` → `-r backend/requirements.txt`
+- `Procfile` / `railway.json` → start command:
+  `uvicorn backend.app:app --host 0.0.0.0 --port $PORT`
+
+Just point Railway at the repo and deploy. Railway injects `$PORT`; the app binds
+to it. Open the Railway URL and the PDF's full-statement mode works with no extra
+config.
+
+> If "Download PDF" says *no backend* on a hosted site, the deploy is serving
+> only static files — the FastAPI app isn't running. Deploy it as a Python
+> service (above), not as a static site. The frontend only ever calls the API on
+> its **own origin**; it never falls back to `localhost` unless you opened the
+> page from `file://` or on `localhost` itself.
+
+Because Railway runs from a datacenter IP, Codeforces' Cloudflare may block
+statement fetches (`"reason": "blocked"`). If so, set your CF session cookie as
+an env var so requests use your identity (see below):
+
+```
+BUNKFORCES_CF_COOKIE = <your codeforces.com Cookie header>
+```
+
+---
+
 ## If Cloudflare blocks statement fetches
 
 Codeforces problem pages are behind Cloudflare's bot check. From your own home

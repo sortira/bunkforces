@@ -254,3 +254,11 @@ def problemset():
 
 # Serve the frontend (must be mounted last so /api/* wins).
 app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="static")
+
+
+if __name__ == "__main__":
+    # Convenience runner: `python backend/app.py`. Binds to $PORT when hosts
+    # (Railway, etc.) provide one, else 8000 for local dev.
+    import uvicorn
+    port = int(os.environ.get("PORT", "8000"))
+    uvicorn.run(app, host="0.0.0.0", port=port)

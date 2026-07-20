@@ -11,10 +11,11 @@
   var CACHE_KEY = "bf.problemset.v1";
   var CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
 
-  // Backend base URL. When the frontend is served by the FastAPI app this is
-  // same-origin (""). When opened as a static file we probe common local ports.
-  var backendBase = null;      // resolved lazily; null = unknown, "" = same origin
-  var backendChecked = false;
+  // Backend base URL. When the frontend is served by the FastAPI app (hosted or
+  // local) this is same-origin (""), so all backend calls are RELATIVE. Only a
+  // page opened straight off disk (file://) or on localhost probes a local port.
+  var backendBase = null;      // resolved: null = none, "" = same origin, or a URL
+  var detectPromise = null;    // cached detection promise (avoids re-checks/races)
 
   function problemUrl(contestId, index) {
     return "https://codeforces.com/problemset/problem/" + contestId + "/" + index;
@@ -189,30 +190,45 @@
   }
 
   // ---- Backend detection + statement fetch --------------------------------
-  function detectBackend() {
-    if (backendChecked) return Promise.resolve(backendBase);
-    backendChecked = true;
-    var candidatesToTry = [];
-    // If served over http(s), same origin first.
-    if (location.protocol === "http:" || location.protocol === "https:") {
-      candidatesToTry.push("");
+  function backendCandidates() {
+    var isHttp = location.protocol === "http:" || location.protocol === "https:";
+    if (isHttp) {
+      // Hosted (Railway, etc.) or served locally: ALWAYS use the same origin,
+      // relative — never a hardcoded host. On localhost only, also try the
+      // default dev port in case the static server and API run separately.
+      var host = location.hostname;
+      if (host === "localhost" || host === "127.0.0.1") {
+        return ["", "http://localhost:8000", "http://127.0.0.1:8000"];
+      }
+      return [""];
     }
-    // Common local dev ports for the FastAPI app.
-    candidatesToTry.push("http://localhost:8000", "http://127.0.0.1:8000");
+    // Opened straight off disk (file://): look for a local backend.
+    return ["http://localhost:8000", "http://127.0.0.1:8000"];
+  }
 
+  function detectBackend() {
+    if (detectPromise) return detectPromise;
+    var candidates = backendCandidates();
     var i = 0;
     function tryNext() {
-      if (i >= candidatesToTry.length) { backendBase = null; return null; }
-      var base = candidatesToTry[i++];
+      if (i >= candidates.length) { backendBase = null; return null; }
+      var base = candidates[i++];
       return fetch(base + "/api/health", { cache: "no-store" })
-        .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function (r) {
+          // A static host answering every path with index.html would return 200
+          // HTML — require real JSON so we don't mistake that for a backend.
+          var ct = (r.headers.get("content-type") || "");
+          if (!r.ok || ct.indexOf("application/json") === -1) return Promise.reject();
+          return r.json();
+        })
         .then(function () { backendBase = base; return base; })
         .catch(function () { return tryNext(); });
     }
-    return tryNext();
+    detectPromise = Promise.resolve().then(tryNext);
+    return detectPromise;
   }
 
-  function hasBackend() { return backendBase !== null && backendChecked; }
+  function hasBackend() { return backendBase !== null; }
 
   function fetchStatement(contestId, index) {
     return detectBackend().then(function (base) {
