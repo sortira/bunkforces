@@ -230,12 +230,31 @@
 
   function hasBackend() { return backendBase !== null; }
 
+  function tryStatement(base, contestId, index) {
+    return fetch(base + "/api/statement/" + contestId + "/" + index, { cache: "no-store" })
+      .then(function (r) {
+        // Reject non-JSON (e.g. a static host returning index.html) so we don't
+        // treat an HTML fallback page as a valid statement response.
+        var ct = r.headers.get("content-type") || "";
+        if (!r.ok || ct.indexOf("application/json") === -1) return Promise.reject();
+        return r.json();
+      });
+  }
+
+  // Fetch a statement by hitting the API directly (relative, same-origin when
+  // hosted). No separate health gate — if the backend is there the call
+  // succeeds; if not, we degrade to header + QR.
   function fetchStatement(contestId, index) {
-    return detectBackend().then(function (base) {
-      if (base === null) return { available: false, reason: "no-backend" };
-      return fetchJson(base + "/api/statement/" + contestId + "/" + index)
-        .catch(function () { return { available: false, reason: "fetch-failed" }; });
-    });
+    var candidates = backendBase !== null ? [backendBase] : backendCandidates();
+    var i = 0;
+    function tryNext() {
+      if (i >= candidates.length) return { available: false, reason: "no-backend" };
+      var base = candidates[i++];
+      return tryStatement(base, contestId, index)
+        .then(function (data) { backendBase = base; return data; })
+        .catch(function () { return tryNext(); });
+    }
+    return Promise.resolve().then(tryNext);
   }
 
   global.BF = global.BF || {};

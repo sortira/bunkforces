@@ -84,9 +84,7 @@
   function statementBlock(p) {
     var st = p.statement;
     if (!st || !st.available) {
-      return '<div class="pp-unavailable">Full statement not fetched — scan the QR code or open the URL to read it online.' +
-        (st && st.reason === "no-backend"
-          ? " (Run the Bunkforces backend to embed statements.)" : "") + '</div>';
+      return '<div class="pp-unavailable">Full statement not embedded here — scan the QR code or open the problem URL to read it.</div>';
     }
     var html = "";
     if (st.timeLimit || st.memoryLimit) {

@@ -1,0 +1,9 @@
+# Force Railway/Nixpacks to build this as a PYTHON service.
+# Without this, Nixpacks sees index.html at the repo root and deploys it as a
+# STATIC site — so the FastAPI backend never runs and the app reports
+# "no backend" for full statements. Forcing the python provider runs the API,
+# which serves the frontend AND /api/* from the same origin.
+providers = ["python"]
+
+[start]
+cmd = "uvicorn backend.app:app --host 0.0.0.0 --port $PORT"

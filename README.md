@@ -88,19 +88,27 @@ origin, so the browser talks to `/api/...` **relatively** (no hardcoded hosts).
 
 This repo already contains what Railway needs at the root:
 
+- `nixpacks.toml` → **forces the Python provider** (`providers = ["python"]`).
+  This is the important one: without it Nixpacks sees `index.html` at the root
+  and deploys the repo as a **static site**, so the FastAPI backend never runs
+  and full statements show "no backend". Forcing Python runs the API.
 - `requirements.txt` → `-r backend/requirements.txt`
 - `Procfile` / `railway.json` → start command:
   `uvicorn backend.app:app --host 0.0.0.0 --port $PORT`
 
-Just point Railway at the repo and deploy. Railway injects `$PORT`; the app binds
-to it. Open the Railway URL and the PDF's full-statement mode works with no extra
-config.
+Point Railway at the repo and deploy. Railway injects `$PORT`; the app binds to
+it and serves the frontend **and** `/api/*` from the same origin.
 
-> If "Download PDF" says *no backend* on a hosted site, the deploy is serving
-> only static files — the FastAPI app isn't running. Deploy it as a Python
-> service (above), not as a static site. The frontend only ever calls the API on
-> its **own origin**; it never falls back to `localhost` unless you opened the
-> page from `file://` or on `localhost` itself.
+**If it still says "no backend" after deploying:**
+
+1. Visit `https://<your-app>.up.railway.app/api/health` — it must return
+   `{"ok":true}`. If instead you get your page's HTML or a 404, Railway is still
+   serving static files: **redeploy** so it picks up `nixpacks.toml` (or delete
+   and recreate the service if it cached the static builder). Make sure the new
+   files are committed and pushed to the branch Railway builds.
+2. The frontend only ever calls the API on its **own origin** (relative URLs) —
+   it never uses `localhost` unless the page was opened from `file://` or on
+   `localhost` itself.
 
 Because Railway runs from a datacenter IP, Codeforces' Cloudflare may block
 statement fetches (`"reason": "blocked"`). If so, set your CF session cookie as
