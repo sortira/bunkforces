@@ -35,6 +35,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+# cloudscraper solves Cloudflare's JS challenge, which is what a datacenter IP
+# (Railway, etc.) hits when scraping Codeforces problem pages. Optional — we
+# fall back to plain requests if it isn't installed.
+try:
+    import cloudscraper
+except Exception:  # pragma: no cover
+    cloudscraper = None
+
 # --------------------------------------------------------------------------- #
 # Paths / config
 # --------------------------------------------------------------------------- #
@@ -65,6 +73,20 @@ BROWSER_HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
     "Referer": "https://codeforces.com/problemset",
 }
+
+# Lazily-created cloudscraper session (reused so a solved challenge is kept).
+_scraper = None
+def _get_scraper():
+    global _scraper
+    if _scraper is None and cloudscraper is not None:
+        try:
+            _scraper = cloudscraper.create_scraper(
+                browser={"browser": "chrome", "platform": "windows", "desktop": True}
+            )
+        except Exception:
+            _scraper = None
+    return _scraper
+
 
 app = FastAPI(title="Bunkforces backend", version="1.0")
 app.add_middleware(
@@ -181,22 +203,35 @@ def _parse_statement(html: str) -> dict:
 
 def _fetch_html(contest_id: int, index: str):
     cookie = _load_cookie()
-    headers = dict(BROWSER_HEADERS)
-    if cookie:
-        headers["Cookie"] = cookie
     urls = [
         f"{CF_BASE}/problemset/problem/{contest_id}/{index}",
         f"{CF_BASE}/contest/{contest_id}/problem/{index}",
     ]
+    scraper = _get_scraper()
     last_status = None
     for url in urls:
+        # 1) cloudscraper first — it manages its own browser identity and solves
+        #    Cloudflare's JS challenge (the datacenter/Railway case).
+        if scraper is not None:
+            try:
+                hdrs = {"Cookie": cookie} if cookie else {}
+                r = scraper.get(url, headers=hdrs, timeout=45)
+                last_status = f"cloudscraper:{r.status_code}"
+                if r.status_code == 200 and not _looks_blocked(r.text):
+                    return r.text, None
+            except Exception as e:  # noqa: BLE001
+                last_status = f"cloudscraper:{e}"
+        # 2) plain requests with browser headers (works from clean/home IPs).
         try:
-            r = requests.get(url, headers=headers, timeout=20)
-            last_status = r.status_code
+            hdrs = dict(BROWSER_HEADERS)
+            if cookie:
+                hdrs["Cookie"] = cookie
+            r = requests.get(url, headers=hdrs, timeout=30)
+            last_status = f"requests:{r.status_code}"
             if r.status_code == 200 and not _looks_blocked(r.text):
                 return r.text, None
         except requests.RequestException as e:
-            last_status = str(e)
+            last_status = f"requests:{e}"
     return None, last_status
 
 
@@ -205,7 +240,11 @@ def _fetch_html(contest_id: int, index: str):
 # --------------------------------------------------------------------------- #
 @app.get("/api/health")
 def health():
-    return {"ok": True, "hasCookie": bool(_load_cookie())}
+    return {
+        "ok": True,
+        "hasCookie": bool(_load_cookie()),
+        "cloudscraper": cloudscraper is not None,
+    }
 
 
 @app.get("/api/statement/{contest_id}/{index}")
