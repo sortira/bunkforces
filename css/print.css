@@ -1,0 +1,110 @@
+/* ==========================================================================
+   Bunkforces — Print / PDF stylesheet
+   Applied only when printing. Clean, high-contrast, black & white.
+   The screen UI is hidden; #printRoot is shown. Single column, Ubuntu font,
+   per-page footer via <tfoot>.
+   ========================================================================== */
+
+@page {
+  size: A4;
+  margin: var(--print-margin, 12mm);
+}
+
+body {
+  background: #fff !important;
+  color: #000 !important;
+}
+
+/* Hide the interactive app while printing */
+.topbar, .filters-bar, .workspace, .toast { display: none !important; }
+
+#printRoot {
+  display: block !important;
+  color: #000;
+  font-family: "Ubuntu", "Ubuntu Nerd Font", ui-sans-serif, Arial, sans-serif;
+}
+
+/* Single column — no multi-column overflow. */
+.print-doc {
+  font-size: var(--print-font, 10pt);
+  line-height: 1.42;
+  overflow-wrap: break-word; word-break: break-word;
+}
+
+/* Footer repeated on every printed page via <tfoot> (table-footer-group is
+   reprinted at the bottom of each page and reserves its own space). */
+.print-wrap { width: 100%; border-collapse: collapse; }
+.print-wrap > tfoot { display: table-footer-group; }
+.print-wrap > tbody > tr > td, .print-wrap > tfoot > tr > td { padding: 0; }
+.print-footer {
+  text-align: center;
+  font-size: 8pt; color: #000;
+  border-top: 1px solid #000;
+  padding-top: 4px; margin-top: 8px;
+}
+
+.print-title {
+  text-align: center;
+  border-bottom: 2px solid #000;
+  padding-bottom: 6px;
+  margin-bottom: 12px;
+}
+.print-title .pp-logo { height: 46px; width: auto; display: block; margin: 0 auto 6px; }
+.print-title h1 { font-size: 1.6em; margin: 0; }
+.print-title .sub { font-size: 0.85em; color: #000; }
+
+.print-problem { margin-bottom: 10px; padding-bottom: 8px; }
+.print-problem.no-break { break-inside: avoid; }
+
+.pp-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+  border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 6px;
+}
+.pp-headline { flex: 1; }
+.pp-num { font-weight: 700; font-size: 1.05em; }
+.pp-num .idx { text-transform: uppercase; }
+.pp-meta { font-size: 0.72em; color: #000; margin-top: 2px; }
+.pp-meta .sep { margin: 0 5px; }
+.pp-url { font-size: 0.7em; color: #000; word-break: break-all; font-family: monospace; }
+
+.pp-qr { flex: none; width: 64px; height: 64px; }
+.pp-qr img, .pp-qr canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+
+.pp-statement { margin: 6px 0; max-width: 100%; }
+.pp-statement p { margin: 4px 0; }
+.pp-statement img { max-width: 100%; height: auto; }
+
+.pp-section-title { font-weight: 700; font-size: 0.85em; margin: 6px 0 2px; }
+.pp-io { margin: 4px 0; max-width: 100%; }
+.pp-examples { break-inside: avoid; }
+.pp-examples table {
+  width: 100%; border-collapse: collapse; font-family: "Consolas", monospace; font-size: 0.8em;
+}
+.pp-examples th {
+  text-align: left; border: 1px solid #000; padding: 2px 5px;
+  background: #000; color: #fff; font-size: 0.9em;
+}
+.pp-examples td {
+  border: 1px solid #000; padding: 3px 5px; vertical-align: top; white-space: pre-wrap;
+}
+
+.pp-unavailable {
+  font-size: 0.8em; font-style: italic; color: #000;
+  border: 1px dashed #000; padding: 6px; margin: 6px 0;
+}
+
+/* Scratch space — black dot-grid / graph-paper guides (two-colour). */
+.pp-scratch { margin-top: 6px; break-inside: avoid; min-height: var(--scratch-h, 8em); }
+.pp-scratch.dots {
+  background-image: radial-gradient(#000 0.5px, transparent 0.5px);
+  background-size: 5mm 5mm; border: 1px solid #000;
+}
+.pp-scratch.lines {
+  background-image: repeating-linear-gradient(#fff, #fff 5.7mm, #000 5.7mm, #000 6mm);
+  border: 1px solid #000;
+}
+.pp-scratch.blank { border: 1px solid #000; }
+
+/* Math via MathJax renders inline; keep it from overflowing the page. */
+mjx-container { display: inline; max-width: 100%; }
+mjx-container[display="true"] { display: block; max-width: 100%; overflow: hidden; }

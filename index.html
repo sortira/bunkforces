@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bunkforces by sortira</title>
+  <link rel="icon" type="image/png" href="bunkforces%20logo.png" />
+  <link rel="preconnect" href="https://codeforces.com" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/print.css" media="print" />
+</head>
+<body>
+  <!-- ===================== APP HEADER ===================== -->
+  <header class="topbar">
+    <div class="brand">
+      <img class="brand-logo" src="bunkforces%20logo.png" alt="Bunkforces logo" />
+      <div class="brand-text">
+        <h1>Bunkforces by sortira</h1>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <div class="field inline">
+        <label for="handle">CF handle</label>
+        <input id="handle" type="text" placeholder="tourist" autocomplete="off" spellcheck="false" />
+      </div>
+      <nav class="nav-links">
+        <a class="nav-link" href="https://aritro.is-a.dev" target="_blank" rel="noopener">Home</a>
+        <a class="nav-link" href="https://x.com/silicognition" target="_blank" rel="noopener">X</a>
+        <a class="nav-link" href="about.html">About</a>
+      </nav>
+      <button id="themeToggle" class="icon-btn" title="Toggle dark mode" aria-label="Toggle dark mode">&#9680;</button>
+    </div>
+  </header>
+
+  <!-- ===================== FILTERS (always visible, on top) ===================== -->
+  <section class="filters-bar" aria-label="Filters">
+    <div class="filter-block">
+      <label>Count</label>
+      <div class="stepper">
+        <button type="button" data-step="-1" data-target="count" class="step-btn">&minus;</button>
+        <input id="count" type="number" min="1" max="50" value="6" />
+        <button type="button" data-step="1" data-target="count" class="step-btn">+</button>
+      </div>
+    </div>
+
+    <div class="filter-block rating-block">
+      <label>Rating <span id="ratingMinLabel">800</span>&ndash;<span id="ratingMaxLabel">1600</span></label>
+      <div class="dual-range">
+        <div class="dual-track"><div class="dual-fill" id="ratingFill"></div></div>
+        <input type="range" id="ratingMin" min="800" max="3500" step="100" value="800" />
+        <input type="range" id="ratingMax" min="800" max="3500" step="100" value="1600" />
+      </div>
+      <label class="checkline"><input type="checkbox" id="includeUnrated" /> <span>unrated</span></label>
+    </div>
+
+    <div class="filter-block">
+      <label>Division</label>
+      <div class="chip-group" id="divisions">
+        <button type="button" class="filter-chip" data-div="1">D1</button>
+        <button type="button" class="filter-chip" data-div="2">D2</button>
+        <button type="button" class="filter-chip" data-div="3">D3</button>
+        <button type="button" class="filter-chip" data-div="4">D4</button>
+        <button type="button" class="filter-chip" data-div="edu">Edu</button>
+      </div>
+    </div>
+
+    <div class="filter-block">
+      <label>Index</label>
+      <div class="index-range">
+        <select id="indexMin"></select>
+        <span>&rarr;</span>
+        <select id="indexMax"></select>
+      </div>
+    </div>
+
+    <div class="filter-block tag-block">
+      <label>Tags</label>
+      <div class="tag-row">
+        <div class="tag-input-wrap">
+          <input id="tagSearch" type="text" placeholder="add tag&hellip;" autocomplete="off" />
+          <div class="tag-dropdown" id="tagDropdown" hidden></div>
+        </div>
+        <div class="tag-mode">
+          <label class="radio"><input type="radio" name="tagMode" value="any" checked /> any</label>
+          <label class="radio"><input type="radio" name="tagMode" value="all" /> all</label>
+        </div>
+      </div>
+      <div class="tag-selected" id="selectedTags"></div>
+    </div>
+
+    <div class="filter-block">
+      <label for="minSolved">Min solves</label>
+      <input id="minSolved" type="number" min="0" step="100" value="0" />
+    </div>
+
+    <div class="filter-block">
+      <label>Solved <span class="muted" id="solvedHint">(handle)</span></label>
+      <div class="chip-group" id="solvedFilter">
+        <button type="button" class="filter-chip active" data-solved="all">All</button>
+        <button type="button" class="filter-chip" data-solved="unsolved">Unsolved</button>
+        <button type="button" class="filter-chip" data-solved="solved">Solved</button>
+      </div>
+    </div>
+
+    <div class="filter-block generate-block">
+      <button id="generate" class="btn-primary">Generate Set</button>
+      <p class="dataset-status" id="datasetStatus">Loading&hellip;</p>
+    </div>
+  </section>
+
+  <!-- ===================== WORKSPACE ===================== -->
+  <section class="workspace">
+    <div class="ws-tools">
+      <!-- Session + export toolbar -->
+      <div class="toolbar">
+        <div class="field inline grow">
+          <label for="sessionName">Problem set</label>
+          <input id="sessionName" type="text" placeholder="Untitled set" />
+        </div>
+        <div class="toolbar-btns">
+          <button id="saveSession" class="btn" title="Save this set">Save</button>
+          <select id="sessionList" title="Load a saved set"></select>
+          <button id="deleteSession" class="btn" title="Delete saved set">Delete</button>
+          <span class="divider"></span>
+          <button id="exportJson" class="btn" title="Export notes & sets as JSON">Export</button>
+          <button id="importJson" class="btn" title="Import JSON">Import</button>
+          <input type="file" id="importFile" accept="application/json" hidden />
+        </div>
+      </div>
+
+      <!-- PDF options -->
+      <details class="pdf-panel" id="pdfPanel">
+        <summary>
+          <span>PDF / Print options</span>
+          <button id="downloadPdf" class="btn-primary">Download / Print PDF</button>
+        </summary>
+        <div class="pdf-options">
+          <div class="field">
+            <label for="pdfFont">Font size</label>
+            <select id="pdfFont">
+              <option value="8">8 pt (tiny)</option>
+              <option value="9">9 pt</option>
+              <option value="10" selected>10 pt</option>
+              <option value="11">11 pt</option>
+              <option value="12">12 pt</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pdfMargin">Margins</label>
+            <select id="pdfMargin">
+              <option value="8">Narrow</option>
+              <option value="12" selected>Normal</option>
+              <option value="20">Wide</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pdfMode">Content</label>
+            <select id="pdfMode">
+              <option value="header">Header only (name, rating, tags, QR)</option>
+              <option value="full" selected>Full statement (needs backend)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pdfScratch">Scratch space</label>
+            <select id="pdfScratch">
+              <option value="none">None</option>
+              <option value="dots" selected>Dotted grid</option>
+              <option value="lines">Ruled lines</option>
+              <option value="blank">Blank</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pdfScratchLines">Scratch height</label>
+            <select id="pdfScratchLines">
+              <option value="0">None</option>
+              <option value="4">Small</option>
+              <option value="8" selected>Medium</option>
+              <option value="14">Large</option>
+            </select>
+          </div>
+          <label class="checkline"><input type="checkbox" id="pdfQr" checked /> <span>Include QR codes</span></label>
+          <label class="checkline"><input type="checkbox" id="pdfExamples" checked /> <span>Include sample tests</span></label>
+        </div>
+      </details>
+
+      <div class="set-header">
+        <h2 id="setTitle">Your set</h2>
+        <span class="count-badge" id="setCount">0 problems</span>
+      </div>
+    </div>
+
+    <!-- Only this area scrolls -->
+    <div class="ws-scroll">
+      <div id="problemList" class="problem-list"></div>
+      <div id="emptyState" class="empty-state">
+        <div class="empty-icon">&#9633;</div>
+        <h3>No problems yet</h3>
+        <p>Set your filters above and hit <strong>Generate Set</strong> to pull random Codeforces problems.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- Print container (populated on demand) -->
+  <div id="printRoot" aria-hidden="true"></div>
+
+  <script src="js/qrcode.js"></script>
+  <script src="js/cf.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/pdf.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
